@@ -76,3 +76,8 @@ export type ResultsTableProps = {
   data: Sponsor[];
   isLoading: boolean;
 };
+
+export type LocationSearchResult = {
+  cities: string[];
+  displayName: string;
+};
