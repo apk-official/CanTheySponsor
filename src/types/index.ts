@@ -58,3 +58,20 @@ export type CompanySearchProps = {
   companySearch: string;
   onCompanySearchChange: (value: string) => void;
 };
+
+export type Sponsor = {
+  "Organisation Name": string;
+  "Town/City": string;
+  "Type & Rating": string;
+  Route: string;
+};
+
+export type SearchFiltersProps = {
+  onFilteredDataChange: (data: Sponsor[]) => void;
+  onLoadingChange: (loading: boolean) => void;
+};
+
+export type ResultsTableProps = {
+  data: Sponsor[];
+  isLoading: boolean;
+};
