@@ -5,6 +5,7 @@ import { Separator } from "./ui/separator";
 import { Loader2, Locate } from "lucide-react";
 import { LocationFilterProps } from "@/types";
 import { searchCurrentLocation, searchLocation } from "@/lib/location";
+import { useMutation } from "@tanstack/react-query";
 
 const radius: { key: string; value: string }[] = [
   { key: "Rd1", value: "5" },
@@ -22,59 +23,46 @@ export default function PostcodeInput({
   onHandleSelect,
   onCitiesChange,
 }: LocationFilterProps) {
-  const [loadingSearch, setLoadingSearch] = useState(false);
-  const [loadingMyLocation, setLoadingMyLocation] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = async () => {
-    setError(null);
-    setLoadingSearch(true);
-    try {
-      const result = await searchLocation(value, locationRadius);
+  const searchMutation = useMutation({
+    mutationFn: () => searchLocation(value, locationRadius),
+    onSuccess: (result) => {
       if (!result.cities.length) {
         setError("No locations found.");
         return;
       }
-      onCitiesChange?.(result.cities);
-      onHandleSelect?.();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
-    } finally {
-      setLoadingSearch(false);
-    }
-  };
-  // -----------------------------
-  // MY LOCATION
-  // -----------------------------
-
-  const handleUseMyLocation = async () => {
-    try {
       setError(null);
-      setLoadingMyLocation(true);
-
-      const result = await searchCurrentLocation(locationRadius);
-
-      onValueChange(result.postcode);
-
       onCitiesChange?.(result.cities);
-
       onHandleSelect?.();
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
+      setError(err.message || "Something went wrong.");
+    },
+  });
+
+  const myLocationMutation = useMutation({
+    mutationFn: () => searchCurrentLocation(locationRadius),
+    onSuccess: (result) => {
+      setError(null);
+      onValueChange(result.postcode);
+      onCitiesChange?.(result.cities);
+      onHandleSelect?.();
+    },
+    onError: (err: any) => {
       const geolocationErrors: Record<number, string> = {
         1: "Location access denied.",
         2: "Location unavailable.",
         3: "Location request timed out.",
       };
+      setError(
+        err.code
+          ? geolocationErrors[err.code] || "Could not get your location."
+          : err.message || "Something went wrong."
+      );
+    },
+  });
 
-      if (err.code) {
-        setError(geolocationErrors[err.code] || "Could not get your location.");
-      } else {
-        setError(err.message || "Something went wrong.");
-      }
-    } finally {
-      setLoadingMyLocation(false);
-    }
-  };
 
   return (
     <form className="w-full">
@@ -122,21 +110,30 @@ export default function PostcodeInput({
         <Field className="flex flex-row w-full pt-3">
           <button
             type="button"
-            disabled={value.length < 3}
-            onClick={handleSearch}
+            disabled={value.length < 3 || searchMutation.isPending}
+            onClick={() => {
+              setError(null);
+              searchMutation.mutate();
+            }}
             className="px-3 py-2 bg-primary rounded-md text-xs text-background cursor-pointer hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
              disabled:pointer-events-none"
           >
-            {loadingSearch && <Loader2 size={12} className="animate-spin" />}
+            {searchMutation.isPending && (
+              <Loader2 size={12} className="animate-spin" />
+            )}
             Search
           </button>
           <button
             type="button"
-            onClick={handleUseMyLocation}
+            disabled={myLocationMutation.isPending}
+            onClick={() => {
+              setError(null);
+              myLocationMutation.mutate();
+            }}
             className="px-3 py-2 hover:bg-background bg-popover border border-border rounded-md text-xs cursor-pointer flex items-center justify-center gap-1 "
           >
             <Locate strokeWidth={1} size={16} />
-            {loadingMyLocation && (
+            {myLocationMutation.isPending && (
               <Loader2 size={12} className="animate-spin" />
             )}
             Use My Location

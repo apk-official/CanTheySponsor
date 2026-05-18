@@ -4,7 +4,6 @@ const POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 const OUTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?$/i;
 
 export const isPostcode = (value: string) => POSTCODE_REGEX.test(value.trim());
-
 export const isOutcode = (value: string) => OUTCODE_REGEX.test(value.trim());
 
 export const normalise = (s: string) =>
@@ -16,7 +15,27 @@ export const normalise = (s: string) =>
     .replace(/[^a-z0-9\s]/g, "");
 
 // ------------------------------------
-// GET COORDINATES
+// HAVERSINE — verify actual distance
+// ------------------------------------
+
+function getDistanceMiles(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 3958.8; // Earth radius in miles
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ------------------------------------
+// GET COORDINATES from postcode/outcode
 // ------------------------------------
 
 async function getCoordinates(input: string): Promise<{
@@ -26,21 +45,12 @@ async function getCoordinates(input: string): Promise<{
 }> {
   const cleanInput = input.trim();
 
-  // ------------------------------------
-  // FULL POSTCODE
-  // ------------------------------------
-
   if (isPostcode(cleanInput)) {
     const res = await fetch(
       `https://api.postcodes.io/postcodes/${cleanInput.replace(/\s/g, "")}`,
     );
-
     const data = await res.json();
-
-    if (data.status !== 200) {
-      throw new Error("Invalid postcode");
-    }
-
+    if (data.status !== 200) throw new Error("Invalid postcode");
     return {
       latitude: data.result.latitude,
       longitude: data.result.longitude,
@@ -48,21 +58,12 @@ async function getCoordinates(input: string): Promise<{
     };
   }
 
-  // ------------------------------------
-  // OUTCODE
-  // ------------------------------------
-
   if (isOutcode(cleanInput)) {
     const res = await fetch(
       `https://api.postcodes.io/outcodes/${cleanInput.toUpperCase()}`,
     );
-
     const data = await res.json();
-
-    if (data.status !== 200) {
-      throw new Error("Invalid outcode");
-    }
-
+    if (data.status !== 200) throw new Error("Invalid outcode");
     return {
       latitude: data.result.latitude,
       longitude: data.result.longitude,
@@ -70,74 +71,94 @@ async function getCoordinates(input: string): Promise<{
     };
   }
 
-  // ------------------------------------
-  // CITY / TOWN
-  // ------------------------------------
-
-  const geoRes = await fetch(
-    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-      cleanInput,
-    )}&format=json&limit=1&countrycodes=gb`,
-  );
-
-  const geoData = await geoRes.json();
-
-  if (!geoData.length) {
-    throw new Error("Location not found");
-  }
-
-  return {
-    latitude: parseFloat(geoData[0].lat),
-    longitude: parseFloat(geoData[0].lon),
-    displayName: cleanInput,
-  };
+  throw new Error("Not a postcode or outcode");
 }
 
 // ------------------------------------
-// GET NEARBY CITIES
+// GET NEARBY TOWNS via Overpass
+// Only city + town, Haversine-verified
 // ------------------------------------
+const townCache = new Map<string, Promise<string[]>>();
 
-async function getNearbyCities(
+async function getNearbyTowns(
   latitude: number,
   longitude: number,
   radiusMiles: string,
 ): Promise<string[]> {
-  const radiusMetres = Math.round(parseInt(radiusMiles) * 1609.34);
+  const radiusNum = parseFloat(radiusMiles);
+  const cacheKey = `${latitude.toFixed(2)},${longitude.toFixed(2)},${radiusMiles}`;
 
-  const res = await fetch("https://api.postcodes.io/postcodes", {
+  if (townCache.has(cacheKey)) {
+    return townCache.get(cacheKey)!;
+  }
+
+  const radiusMetres = Math.round(radiusNum * 1609.34);
+
+  const query = `
+    [out:json][timeout:30];
+    node["place"~"^(city|town)$"]
+      (around:${radiusMetres},${latitude},${longitude});
+    out body;
+  `;
+
+  const promise = fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      geolocations: [
-        {
-          longitude,
-          latitude,
-          radius: radiusMetres,
-          limit: 10000,
-        },
-      ],
-    }),
-  });
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `data=${encodeURIComponent(query)}`,
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Failed to fetch nearby towns");
+      return res.json();
+    })
+    .then((data) => {
+      if (!data.elements?.length) return [];
+      const towns: string[] = data.elements
+        .filter((el: any) => {
+          if (typeof el.lat !== "number" || typeof el.lon !== "number")
+            return false;
+          return (
+            getDistanceMiles(latitude, longitude, el.lat, el.lon) <= radiusNum
+          );
+        })
+        .map((el: any) => el.tags?.name)
+        .filter(
+          (name: unknown): name is string =>
+            typeof name === "string" && name.length > 0,
+        );
+      return [...new Set(towns)];
+    })
+    .catch((err) => {
+      // Remove failed promises from cache so retries work
+      townCache.delete(cacheKey);
+      throw err;
+    });
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch nearby locations");
+  townCache.set(cacheKey, promise);
+  return promise;
+}
+
+// ------------------------------------
+// GET OWN TOWN from coordinates
+// (so the origin city is always included)
+// ------------------------------------
+
+async function getOwnTown(
+  latitude: number,
+  longitude: number,
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`,
+      { headers: { "Accept-Language": "en" } },
+    );
+    const data = await res.json();
+    // zoom=10 returns city/town level
+    return (
+      data.address?.city || data.address?.town || data.address?.village || null
+    );
+  } catch {
+    return null;
   }
-
-  const data = await res.json();
-
-  const results = data.result?.[0]?.result;
-
-  if (!results?.length) {
-    return [];
-  }
-
-  const cities: string[] = results
-    .map((item: any) => item.admin_district)
-    .filter((city: unknown): city is string => typeof city === "string");
-
-  return [...new Set(cities)];
 }
 
 // ------------------------------------
@@ -148,12 +169,32 @@ export async function searchLocation(
   input: string,
   radiusMiles: string,
 ): Promise<LocationSearchResult> {
-  const { latitude, longitude, displayName } = await getCoordinates(input);
+  const clean = input.trim();
 
-  const cities = await getNearbyCities(latitude, longitude, radiusMiles);
+  // City/town name typed → return directly, no API needed.
+  // normalise() in SearchFilters handles partial matches.
+  if (!isPostcode(clean) && !isOutcode(clean)) {
+    return {
+      cities: [clean],
+      displayName: clean,
+    };
+  }
+
+  // Postcode/outcode → coordinates → nearby towns via Overpass
+  const { latitude, longitude, displayName } = await getCoordinates(clean);
+
+  const [nearbyTowns, ownTown] = await Promise.all([
+    getNearbyTowns(latitude, longitude, radiusMiles),
+    getOwnTown(latitude, longitude),
+  ]);
+
+  // Always include the town the postcode sits in
+  const allCities = ownTown
+    ? [...new Set([ownTown, ...nearbyTowns])]
+    : nearbyTowns;
 
   return {
-    cities,
+    cities: allCities,
     displayName,
   };
 }
@@ -179,19 +220,21 @@ export async function searchCurrentLocation(radiusMiles: string): Promise<{
 
   const { latitude, longitude } = position.coords;
 
-  // nearest postcode for display
+  // Reverse geocode for postcode display label
   const reverseRes = await fetch(
-    `https://api.postcodes.io/postcodes?lon=${longitude}&lat=${latitude}`,
+    `https://api.postcodes.io/postcodes?lon=${longitude}&lat=${latitude}&limit=1`,
   );
-
   const reverseData = await reverseRes.json();
-
   const postcode = reverseData.result?.[0]?.postcode || "Current Location";
 
-  const cities = await getNearbyCities(latitude, longitude, radiusMiles);
+  const [nearbyTowns, ownTown] = await Promise.all([
+    getNearbyTowns(latitude, longitude, radiusMiles),
+    getOwnTown(latitude, longitude),
+  ]);
 
-  return {
-    cities,
-    postcode,
-  };
+  const allCities = ownTown
+    ? [...new Set([ownTown, ...nearbyTowns])]
+    : nearbyTowns;
+
+  return { cities: allCities, postcode };
 }
