@@ -31,16 +31,16 @@ export default function ResultsTable() {
         <TableHeader className={undefined}>
           <TableRow className="">
             <TableHead className="font-sans text-normal text-muted-foreground">
-              Invoice
+              Organisation Name
             </TableHead>
             <TableHead className="font-sans text-normal text-muted-foreground">
-              Status
+              Town/City
             </TableHead>
             <TableHead className="font-sans text-normal text-muted-foreground">
-              Method
+              Type & Rating
             </TableHead>
             <TableHead className="font-sans text-normal text-muted-foreground text-right">
-              Amount
+              Route
             </TableHead>
           </TableRow>
         </TableHeader>

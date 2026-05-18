@@ -11,9 +11,16 @@ import { TypeRatingFilterProps, TypeRating } from "@/types";
 import { InputGroupAddon } from "./ui/input-group";
 
 const TypeRatingData: { key: string; value: TypeRating }[] = [
-  { key: "R1", value: "All" },
-  { key: "R2", value: "Worker(A Rating)" },
-  { key: "R3", value: "Worker (UK Expansion Worker: Provisional )" },
+  { key: "TR1", value: "All" },
+  { key: "TR2", value: "Temporary Worker (A (Premium))" },
+  { key: "TR3", value: "Temporary Worker (A (SME+))" },
+  { key: "TR4", value: "Temporary Worker (A rating)" },
+  { key: "TR5", value: "Temporary Worker (B rating)" },
+  { key: "TR6", value: "Worker (A (Premium))" },
+  { key: "TR7", value: "Worker (A (SME+))" },
+  { key: "TR8", value: "Worker (A rating)" },
+  { key: "TR9", value: "Worker (B rating)" },
+  { key: "TR10", value: "Worker (UK Expansion Worker: Provisional )" },
 ];
 
 export default function TypeRatingFilter({value,onValueChange}:TypeRatingFilterProps) {

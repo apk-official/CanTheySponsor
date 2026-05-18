@@ -11,9 +11,24 @@ import { Route, RouteFilterProps } from "@/types";
 import { InputGroupAddon } from "./ui/input-group";
 
 const RouteData: { key: string; value: Route }[] = [
-  { key: "R1", value: "All" },
-  { key: "R2", value: "Workers" },
-  { key: "R3", value: "Temporary Workers" },
+    { key: "R1", value: "All" },
+  { key: "R2", value: "Charity Worker" },
+  { key: "R3", value: "Creative Worker" },
+  { key: "R4", value: "Global Business Mobility: Graduate Trainee" },
+  { key: "R5", value: "Global Business Mobility: Secondment Worker" },
+  { key: "R6", value: "Global Business Mobility: Senior or Specialist Worker" },
+  { key: "R7", value: "Global Business Mobility: Service Supplier" },
+  { key: "R8", value: "Global Business Mobility: UK Expansion Worker" },
+  { key: "R9", value: "Government Authorised Exchange" },
+  { key: "R10", value: "International Agreement" },
+  { key: "R11", value: "International Sportsperson" },
+  { key: "R12", value: "Intra Company Transfers (ICT)" },
+  { key: "R13", value: "Intra-company Routes" },
+  { key: "R14", value: "Religious Worker" },
+  { key: "R15", value: "Scale-up" },
+  { key: "R16", value: "Seasonal Worker" },
+  { key: "R17", value: "Skilled Worker" },
+  { key: "R18", value: "Tier 2 Ministers of Religion" },
 ];
 
 export default function RouteFilter({
