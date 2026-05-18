@@ -12,7 +12,8 @@ export default function LocationFilter({
   onLocationRadiusChange,
   locationSelected,
   onHandleSelect,
-  onHandleClose
+  onHandleClose,
+  onCitiesChange,
 }: LocationFilterProps) {
   
 
@@ -45,7 +46,8 @@ export default function LocationFilter({
               onValueChange={onValueChange}
               locationRadius={locationRadius}
               onLocationRadiusChange={onLocationRadiusChange}
-              onHandleSelect={onHandleSelect}
+                onHandleSelect={onHandleSelect}
+                onCitiesChange={onCitiesChange}
             />
           </PopoverContent>
         </Popover>

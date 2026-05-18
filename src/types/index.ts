@@ -52,6 +52,7 @@ export type LocationFilterProps = {
   locationSelected?: boolean;
   onHandleSelect?: () => void;
   onHandleClose?: () => void;
+  onCitiesChange?: (cities: string[]) => void;
 };
 
 export type CompanySearchProps = {

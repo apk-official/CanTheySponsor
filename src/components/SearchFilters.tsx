@@ -7,21 +7,32 @@ import LocationFilter from "./LocationFilter";
 import { Button } from "./ui/button";
 import Papa from "papaparse";
 
-export default function SearchFilters({ onFilteredDataChange, onLoadingChange }: SearchFiltersProps) {
+const normalize = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, "");
+
+export default function SearchFilters({
+  onFilteredDataChange,
+  onLoadingChange,
+}: SearchFiltersProps) {
   const [currentRoute, setCurrentRoute] = useState<Route>("All");
   const [currentTypeRating, setCurrentTypeRating] = useState<TypeRating>("All");
   const [currentLocation, setCurrentLocation] = useState<string>("");
   const [locationRadius, setLocationRadius] = useState<string>("5");
+  const [locationCities, setLocationCities] = useState<string[]>([]);
   const [locationSelected, setLocationSelected] = useState<boolean>(false);
   const [companySearch, setCompanySearch] = useState<string>("");
   const [data, setData] = useState<Sponsor[]>([]);
-  const handleSelect = () => {
-    setLocationSelected((prev) => !prev);
-  };
+
+  const handleSelect = () => setLocationSelected(true);
+
   const handleClose = () => {
     setLocationSelected(false);
     setCurrentLocation("");
     setLocationRadius("5");
+    setLocationCities([]);
   };
   const handleClearAll = () => {
     setCurrentRoute("All");
@@ -29,8 +40,9 @@ export default function SearchFilters({ onFilteredDataChange, onLoadingChange }:
     setCurrentLocation("");
     setLocationRadius("5");
     setLocationSelected(false);
+    setLocationCities([]);
   };
-  
+
   useEffect(() => {
     onLoadingChange(true);
     Papa.parse("/data/sponsors.csv", {
@@ -45,24 +57,33 @@ export default function SearchFilters({ onFilteredDataChange, onLoadingChange }:
 
   const filteredData = useMemo(() => {
     return data.filter((row) => {
-    if (!row["Organisation Name"]) return false;
+      if (!row["Organisation Name"]) return false;
 
-    const matchesSearch = row["Organisation Name"]
-      .toLowerCase()
-      .includes(companySearch.toLowerCase());
+      const matchesSearch = row["Organisation Name"]
+        .toLowerCase()
+        .includes(companySearch.toLowerCase());
 
-    const matchesRoute =
-      currentRoute === "All" || row["Route"]?.trim() === currentRoute;
+      const matchesRoute =
+        currentRoute === "All" || row["Route"]?.trim() === currentRoute;
 
-    const matchesTypeRating =
-      currentTypeRating === "All" ||
-      row["Type & Rating"]?.trim() === currentTypeRating;
+      const matchesTypeRating =
+        currentTypeRating === "All" ||
+        row["Type & Rating"]?.trim() === currentTypeRating;
 
-    return matchesSearch && matchesRoute && matchesTypeRating;
+      const matchesLocation =
+        locationCities.length === 0 ||
+        locationCities.some((city) => {
+          const normCity = normalize(city);
+          const normRow = normalize(row["Town/City"] ?? "");
+          return normRow.includes(normCity) || normCity.includes(normRow);
+        });
+
+      return (
+        matchesSearch && matchesRoute && matchesTypeRating && matchesLocation
+      );
     });
-  }, [data, companySearch, currentRoute, currentTypeRating]);
+  }, [data, companySearch, currentRoute, currentTypeRating, locationCities]);
 
-      // call onFilteredDataChange whenever filteredData changes
   useEffect(() => {
     onFilteredDataChange(filteredData);
   }, [filteredData]);
@@ -87,6 +108,7 @@ export default function SearchFilters({ onFilteredDataChange, onLoadingChange }:
           onHandleSelect={handleSelect}
           onHandleClose={handleClose}
           locationSelected={locationSelected}
+          onCitiesChange={setLocationCities}
         />
         {(currentRoute !== "All" ||
           currentTypeRating !== "All" ||
