@@ -23,7 +23,7 @@ export default function PostcodeInput({
   onHandleSelect,
   onCitiesChange,
 }: LocationFilterProps) {
-    const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const searchMutation = useMutation({
     mutationFn: () => searchLocation(value, locationRadius),
@@ -58,11 +58,10 @@ export default function PostcodeInput({
       setError(
         err.code
           ? geolocationErrors[err.code] || "Could not get your location."
-          : err.message || "Something went wrong."
+          : err.message || "Something went wrong.",
       );
     },
   });
-
 
   return (
     <form className="w-full">
@@ -116,12 +115,15 @@ export default function PostcodeInput({
               searchMutation.mutate();
             }}
             className="px-3 py-2 bg-primary rounded-md text-xs text-background cursor-pointer hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed 
-             disabled:pointer-events-none"
+             disabled:pointer-events-none flex items-center justify-center gap-1"
           >
-            {searchMutation.isPending && (
-              <Loader2 size={12} className="animate-spin" />
+            {searchMutation.isPending ? (
+              <>
+                <Loader2 size={12} className="animate-spin" /> Searching...
+              </>
+            ) : (
+              "Search"
             )}
-            Search
           </button>
           <button
             type="button"
@@ -132,11 +134,16 @@ export default function PostcodeInput({
             }}
             className="px-3 py-2 hover:bg-background bg-popover border border-border rounded-md text-xs cursor-pointer flex items-center justify-center gap-1 "
           >
-            <Locate strokeWidth={1} size={16} />
-            {myLocationMutation.isPending && (
-              <Loader2 size={12} className="animate-spin" />
+            {myLocationMutation.isPending ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Locating...
+              </>
+            ) : (
+              <>
+                <Locate strokeWidth={1} size={16} /> Use My Location
+              </>
             )}
-            Use My Location
           </button>
         </Field>
         {error && <p className="pt-3 text-xs text-destructive px-1">{error}</p>}

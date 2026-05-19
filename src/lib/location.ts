@@ -171,34 +171,51 @@ export async function searchLocation(
 ): Promise<LocationSearchResult> {
   const clean = input.trim();
 
-  // City/town name typed → return directly, no API needed.
-  // normalise() in SearchFilters handles partial matches.
-  if (!isPostcode(clean) && !isOutcode(clean)) {
-    return {
-      cities: [clean],
-      displayName: clean,
-    };
+  // Postcode/outcode → existing flow (unchanged)
+  if (isPostcode(clean) || isOutcode(clean)) {
+    const { latitude, longitude, displayName } = await getCoordinates(clean);
+
+    const [nearbyTowns, ownTown] = await Promise.all([
+      getNearbyTowns(latitude, longitude, radiusMiles),
+      getOwnTown(latitude, longitude),
+    ]);
+
+    const allCities = ownTown
+      ? [...new Set([ownTown, ...nearbyTowns])]
+      : nearbyTowns;
+
+    return { cities: allCities, displayName };
   }
 
-  // Postcode/outcode → coordinates → nearby towns via Overpass
-  const { latitude, longitude, displayName } = await getCoordinates(clean);
+  // City/town name → geocode via Nominatim first, then find nearby towns
+  const geocodeRes = await fetch(
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(clean)},UK&format=json&limit=1`,
+    { headers: { "Accept-Language": "en" } },
+  );
+  const geocodeData = await geocodeRes.json();
+
+  if (!geocodeData.length) {
+    // Nominatim found nothing — fall back to exact name match only
+    return { cities: [clean], displayName: clean };
+  }
+
+  const { lat, lon, display_name } = geocodeData[0];
+  const latitude = parseFloat(lat);
+  const longitude = parseFloat(lon);
 
   const [nearbyTowns, ownTown] = await Promise.all([
     getNearbyTowns(latitude, longitude, radiusMiles),
     getOwnTown(latitude, longitude),
   ]);
 
-  // Always include the town the postcode sits in
-  const allCities = ownTown
-    ? [...new Set([ownTown, ...nearbyTowns])]
-    : nearbyTowns;
+  // Always include what the user typed as a fallback — in case Overpass
+  // misses the origin city itself
+  const allCities = [
+    ...new Set([clean, ownTown, ...nearbyTowns].filter(Boolean)),
+  ] as string[];
 
-  return {
-    cities: allCities,
-    displayName,
-  };
+  return { cities: allCities, displayName: display_name };
 }
-
 // ------------------------------------
 // SEARCH USING CURRENT LOCATION
 // ------------------------------------

@@ -17,10 +17,12 @@ export type Route =
   | "Seasonal Worker"
   | "Skilled Worker"
   | "Tier 2 Ministers of Religion";
+
 export type RouteFilterProps = {
   value: Route;
   onValueChange: (value: Route) => void;
 };
+
 export type TypeRating =
   | "All"
   | "Temporary Worker (A (Premium))"
@@ -32,17 +34,11 @@ export type TypeRating =
   | "Worker (A rating)"
   | "Worker (B rating)"
   | "Worker (UK Expansion Worker: Provisional )";
+
 export type TypeRatingFilterProps = {
   value: TypeRating;
   onValueChange: (value: TypeRating) => void;
 };
-
-export type LocationType =
-  | "Next.js"
-  | "SvelteKit"
-  | "Nuxt.js"
-  | "Remix"
-  | "Astro";
 
 export type LocationFilterProps = {
   value: string;
@@ -70,11 +66,23 @@ export type Sponsor = {
 export type SearchFiltersProps = {
   onFilteredDataChange: (data: Sponsor[]) => void;
   onLoadingChange: (loading: boolean) => void;
+  /** Mirrors the current search term up to App so it can be passed to ResultsTable */
+  onSearchChange: (term: string) => void;
 };
 
 export type ResultsTableProps = {
   data: Sponsor[];
   isLoading: boolean;
+  /** The current search term — used for highlighting matched text */
+  searchTerm: string;
+  /** Whether highlight mode is active */
+  highlightEnabled: boolean;
+};
+
+export type TableActionBarProps = {
+  searchTerm: string;
+  highlightEnabled: boolean;
+  onHighlightToggle: () => void;
 };
 
 export type LocationSearchResult = {

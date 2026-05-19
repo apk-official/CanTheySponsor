@@ -1,21 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Route, SearchFiltersProps, Sponsor, TypeRating } from "@/types";
+import React, { useEffect, useState } from "react";
+import { Route, SearchFiltersProps, TypeRating } from "@/types";
 import Search from "./SearchInput";
 import RouteFilter from "./RouteFilter";
 import TypeRatingFilter from "./TypeRatingFilter";
 import LocationFilter from "./LocationFilter";
 import { Button } from "./ui/button";
-import Papa from "papaparse";
-
-const normalize = (s: string) =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s]/g, "");
+import { useSearchWorker } from "@/hooks/Usersearch.worker";
 
 export default function SearchFilters({
   onFilteredDataChange,
   onLoadingChange,
+  onSearchChange,
 }: SearchFiltersProps) {
   const [currentRoute, setCurrentRoute] = useState<Route>("All");
   const [currentTypeRating, setCurrentTypeRating] = useState<TypeRating>("All");
@@ -24,7 +19,6 @@ export default function SearchFilters({
   const [locationCities, setLocationCities] = useState<string[]>([]);
   const [locationSelected, setLocationSelected] = useState<boolean>(false);
   const [companySearch, setCompanySearch] = useState<string>("");
-  const [data, setData] = useState<Sponsor[]>([]);
 
   const handleSelect = () => setLocationSelected(true);
 
@@ -34,6 +28,7 @@ export default function SearchFilters({
     setLocationRadius("5");
     setLocationCities([]);
   };
+
   const handleClearAll = () => {
     setCurrentRoute("All");
     setCurrentTypeRating("All");
@@ -41,87 +36,77 @@ export default function SearchFilters({
     setLocationRadius("5");
     setLocationSelected(false);
     setLocationCities([]);
+    setCompanySearch("");
+  };
+
+  const { data, isLoading } = useSearchWorker({
+    csvUrl: `${window.location.origin}/data/sponsors.csv`,
+    search: companySearch,
+    route: currentRoute,
+    typeRating: currentTypeRating,
+    locationCities,
+  });
+
+  const handleSearchChange = (value: string) => {
+    setCompanySearch(value);
+    onSearchChange(value);
   };
 
   useEffect(() => {
-    onLoadingChange(true);
-    Papa.parse("/data/sponsors.csv", {
-      header: true,
-      download: true,
-      worker:true,
-      complete: (results) => {
-        setData(results.data as Sponsor[]);
-        onLoadingChange(false);
-      },
-    });
-  }, []);
-
-  const filteredData = useMemo(() => {
-    return data.filter((row) => {
-      if (!row["Organisation Name"]) return false;
-
-      const matchesSearch = row["Organisation Name"]
-        .toLowerCase()
-        .includes(companySearch.toLowerCase());
-
-      const matchesRoute =
-        currentRoute === "All" || row["Route"]?.trim() === currentRoute;
-
-      const matchesTypeRating =
-        currentTypeRating === "All" ||
-        row["Type & Rating"]?.trim() === currentTypeRating;
-
-      const matchesLocation =
-        locationCities.length === 0 ||
-        locationCities.some((city) => {
-          const normCity = normalize(city);
-          const normRow = normalize(row["Town/City"] ?? "");
-          return normRow.includes(normCity) || normCity.includes(normRow);
-        });
-
-      return (
-        matchesSearch && matchesRoute && matchesTypeRating && matchesLocation
-      );
-    });
-  }, [data, companySearch, currentRoute, currentTypeRating, locationCities]);
+    onFilteredDataChange(data);
+  }, [data]);
 
   useEffect(() => {
-    onFilteredDataChange(filteredData);
-  }, [filteredData]);
+    onLoadingChange(isLoading);
+  }, [isLoading]);
+
+  const hasActiveFilters =
+    currentRoute !== "All" ||
+    currentTypeRating !== "All" ||
+    currentLocation !== "";
+
   return (
-    <section className="flex flex-col items-start justify-between gap-3">
+    <section className="flex flex-col items-start gap-3 w-full">
       <Search
         companySearch={companySearch}
-        onCompanySearchChange={setCompanySearch}
+        onCompanySearchChange={handleSearchChange}
       />
-      <div className="flex items-center justify-start gap-3 flex-wrap w-full">
-        <p className="font-mono text-sm text-muted-foreground">FILTERS: </p>
-        <RouteFilter value={currentRoute} onValueChange={setCurrentRoute} />
-        <TypeRatingFilter
-          value={currentTypeRating}
-          onValueChange={setCurrentTypeRating}
-        />
-        <LocationFilter
-          value={currentLocation}
-          onValueChange={setCurrentLocation}
-          locationRadius={locationRadius}
-          onLocationRadiusChange={setLocationRadius}
-          onHandleSelect={handleSelect}
-          onHandleClose={handleClose}
-          locationSelected={locationSelected}
-          onCitiesChange={setLocationCities}
-        />
-        {(currentRoute !== "All" ||
-          currentTypeRating !== "All" ||
-          currentLocation !== "") && (
-          <Button
-            variant={"ghost"}
-            onClick={handleClearAll}
-            className="underline text-sm font-sans text-muted-foreground cursor-pointer"
-          >
-            Clear All
-          </Button>
-        )}
+
+      {/* On mobile: two rows. On desktop (md+): single row with all filters */}
+      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 w-full">
+        <p className="font-mono text-sm text-muted-foreground shrink-0">FILTERS:</p>
+
+        {/* Row 1 on mobile / inline on desktop */}
+        <div className="flex items-center gap-3">
+          <RouteFilter value={currentRoute} onValueChange={setCurrentRoute} />
+          <TypeRatingFilter
+            value={currentTypeRating}
+            onValueChange={setCurrentTypeRating}
+          />
+        </div>
+
+        {/* Row 2 on mobile / inline on desktop */}
+        <div className="flex items-center gap-3">
+          <LocationFilter
+            value={currentLocation}
+            onValueChange={setCurrentLocation}
+            locationRadius={locationRadius}
+            onLocationRadiusChange={setLocationRadius}
+            onHandleSelect={handleSelect}
+            onHandleClose={handleClose}
+            locationSelected={locationSelected}
+            onCitiesChange={setLocationCities}
+          />
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              onClick={handleClearAll}
+              className="underline text-sm font-sans text-muted-foreground cursor-pointer shrink-0"
+            >
+              Clear All
+            </Button>
+          )}
+        </div>
       </div>
     </section>
   );
