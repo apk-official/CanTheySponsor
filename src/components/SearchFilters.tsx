@@ -48,6 +48,7 @@ export default function SearchFilters({
     Papa.parse("/data/sponsors.csv", {
       header: true,
       download: true,
+      worker:true,
       complete: (results) => {
         setData(results.data as Sponsor[]);
         onLoadingChange(false);
