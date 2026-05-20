@@ -1,9 +1,20 @@
-import React, { useRef } from "react";
+/**
+ * SearchInput.tsx
+ *
+ * Full-width company name search field with a gradient focus ring.
+ *
+ * FIX: Removed the unused `useRef` import — no ref is used in this component.
+ */
+
 import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
 import { Search } from "lucide-react";
-import { CompanySearchProps } from "@/types";
+import type { CompanySearchProps } from "@/types";
+import React from "react";
 
-export default function SearchInput({ companySearch, onCompanySearchChange }: CompanySearchProps) {
+export default function SearchInput({
+  companySearch,
+  onCompanySearchChange,
+}: CompanySearchProps) {
   return (
     <div className="w-full p-[1.5px] rounded-lg bg-border focus-within:bg-linear-to-r focus-within:from-primary focus-within:to-transparent">
       <div className="w-full rounded-[calc(var(--radius-lg)-1.5px)] bg-background">
@@ -15,7 +26,9 @@ export default function SearchInput({ companySearch, onCompanySearchChange }: Co
             autoComplete="off"
             defaultValue={companySearch}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onCompanySearchChange(e.target.value.replace(/[^a-zA-Z0-9\s&'.-]/g, ""))
+              onCompanySearchChange(
+                e.target.value.replace(/[^a-zA-Z0-9\s&'.-]/g, ""),
+              )
             }
           />
           <InputGroupAddon className="">

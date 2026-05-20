@@ -1,4 +1,12 @@
-import React, { useState } from "react";
+/**
+ * RouteFilter.tsx
+ *
+ * Combobox dropdown for filtering by visa route.
+ * The combobox is read-only (no free-text input) — the user picks from a
+ * predefined list of routes that match the CSV values exactly.
+ */
+
+import { useRef, useState } from "react";
 import {
   Combobox,
   ComboboxContent,
@@ -7,11 +15,12 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "./ui/combobox";
-import { Route, RouteFilterProps } from "@/types";
+import type { Route, RouteFilterProps } from "@/types";
 import { InputGroupAddon } from "./ui/input-group";
+import React from "react";
 
-const RouteData: { key: string; value: Route }[] = [
-    { key: "R1", value: "All" },
+const ROUTE_OPTIONS: { key: string; value: Route }[] = [
+  { key: "R1", value: "All" },
   { key: "R2", value: "Charity Worker" },
   { key: "R3", value: "Creative Worker" },
   { key: "R4", value: "Global Business Mobility: Graduate Trainee" },
@@ -31,22 +40,23 @@ const RouteData: { key: string; value: Route }[] = [
   { key: "R18", value: "Tier 2 Ministers of Religion" },
 ];
 
-export default function RouteFilter({
-  value,
-  onValueChange,
-}: RouteFilterProps) {
-  const [open, setOpen] = useState<boolean>(false);
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const handleValueChange = (val: string | null, eventDetails: any) => {
-  onValueChange((val ?? "All") as Route)
-  if (eventDetails.reason === 'item-press') {
-    inputRef.current?.blur()
-  }
-}
+export default function RouteFilter({ value, onValueChange }: RouteFilterProps) {
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleValueChange = (val: string | null, eventDetails: { reason: string }) => {
+    onValueChange((val ?? "All") as Route);
+    // Close the dropdown keyboard-focus when an item is pressed so the popover
+    // doesn't stay open after selection on keyboard navigation.
+    if (eventDetails.reason === "item-press") {
+      inputRef.current?.blur();
+    }
+  };
+
   return (
     <Combobox
-      items={RouteData}
-      defaultValue={"All"}
+      items={ROUTE_OPTIONS}
+      defaultValue="All"
       open={open}
       onOpenChange={setOpen}
       value={value}
@@ -57,16 +67,26 @@ export default function RouteFilter({
         showClear={value !== "All"}
         readOnly
         ref={inputRef}
-        className={`w-43 truncate text-ellipsis rounded-lg focus:border-none placeholder:text-primary py-5 font-sans text-xs cursor-pointer text-primary hover:text-primary aria-expanded:text-primary ${!open && value !== "All" ? ("border border-primary outline outline-primary"):""}`}
-        
-      ><InputGroupAddon className={undefined}>
+        className={`w-43 truncate text-ellipsis rounded-lg focus:border-none placeholder:text-primary py-5 font-sans text-xs cursor-pointer text-primary hover:text-primary aria-expanded:text-primary ${
+          !open && value !== "All" ? "border border-primary outline outline-primary" : ""
+        }`}
+      >
+        <InputGroupAddon className={undefined}>
           <span>Route: </span>
-        </InputGroupAddon></ComboboxInput>
+        </InputGroupAddon>
+      </ComboboxInput>
+
       <ComboboxContent className="w-full" anchor={undefined}>
         <ComboboxEmpty className={undefined}>No items found.</ComboboxEmpty>
         <ComboboxList className={undefined}>
-          {(item: (typeof RouteData)[number]) => (
-            <ComboboxItem key={item.key} value={item.value} className={`data-highlighted:bg-primary-accent-mid data-highlighted:text-foreground font-sans focus:cursor-pointer ${value===item.value && ("text-primary")}`}>
+          {(item: (typeof ROUTE_OPTIONS)[number]) => (
+            <ComboboxItem
+              key={item.key}
+              value={item.value}
+              className={`data-highlighted:bg-primary-accent-mid data-highlighted:text-foreground font-sans focus:cursor-pointer ${
+                value === item.value ? "text-primary" : ""
+              }`}
+            >
               {item.value}
             </ComboboxItem>
           )}

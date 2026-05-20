@@ -1,3 +1,6 @@
+// ─── Domain types ────────────────────────────────────────────────────────────
+
+/** Every visa route the Home Office register uses. */
 export type Route =
   | "All"
   | "Charity Worker"
@@ -18,11 +21,7 @@ export type Route =
   | "Skilled Worker"
   | "Tier 2 Ministers of Religion";
 
-export type RouteFilterProps = {
-  value: Route;
-  onValueChange: (value: Route) => void;
-};
-
+/** Every sponsor type/rating combination that appears in the register. */
 export type TypeRating =
   | "All"
   | "Temporary Worker (A (Premium))"
@@ -35,12 +34,27 @@ export type TypeRating =
   | "Worker (B rating)"
   | "Worker (UK Expansion Worker: Provisional )";
 
-export type TypeRatingFilterProps = {
+/** A single row from the CSV register. Keys match CSV headers exactly. */
+export interface Sponsor {
+  "Organisation Name": string;
+  "Town/City": string;
+  "Type & Rating": string;
+  Route: string;
+}
+
+// ─── Component prop types ─────────────────────────────────────────────────────
+
+export interface RouteFilterProps {
+  value: Route;
+  onValueChange: (value: Route) => void;
+}
+
+export interface TypeRatingFilterProps {
   value: TypeRating;
   onValueChange: (value: TypeRating) => void;
-};
+}
 
-export type LocationFilterProps = {
+export interface LocationFilterProps {
   value: string;
   onValueChange: (value: string) => void;
   locationRadius: string;
@@ -49,44 +63,42 @@ export type LocationFilterProps = {
   onHandleSelect?: () => void;
   onHandleClose?: () => void;
   onCitiesChange?: (cities: string[]) => void;
-};
+}
 
-export type CompanySearchProps = {
+export interface CompanySearchProps {
   companySearch: string;
   onCompanySearchChange: (value: string) => void;
-};
+}
 
-export type Sponsor = {
-  "Organisation Name": string;
-  "Town/City": string;
-  "Type & Rating": string;
-  Route: string;
-};
-
-export type SearchFiltersProps = {
+export interface SearchFiltersProps {
   onFilteredDataChange: (data: Sponsor[]) => void;
   onLoadingChange: (loading: boolean) => void;
-  /** Mirrors the current search term up to App so it can be passed to ResultsTable */
+  /** Mirrors the current search term up to App so it can be passed to ResultsTable. */
   onSearchChange: (term: string) => void;
-};
+}
 
-export type ResultsTableProps = {
+export interface ResultsTableProps {
   data: Sponsor[];
   isLoading: boolean;
-  /** The current search term — used for highlighting matched text */
+  /** Current search term — used to highlight matched text. */
   searchTerm: string;
-  /** Whether highlight mode is active */
+  /** Whether the highlight overlay is active. */
   highlightEnabled: boolean;
-};
+}
 
-export type TableActionBarProps = {
+export interface TableActionBarProps {
   searchTerm: string;
   highlightEnabled: boolean;
   onHighlightToggle: () => void;
   filteredData: Sponsor[];
-};
+  /** ISO date string shown in the action bar ("Updated On"). */
+  updatedOn?: string;
+}
 
-export type LocationSearchResult = {
+// ─── Location ─────────────────────────────────────────────────────────────────
+
+export interface LocationSearchResult {
   cities: string[];
+  /** Human-readable label for the resolved location (postcode, town name, etc.). */
   displayName: string;
-};
+}

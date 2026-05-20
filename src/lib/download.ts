@@ -1,30 +1,43 @@
 /**
  * download.ts
  *
- * Utility functions for downloading data as CSV or PDF.
+ * Three download strategies:
+ *  1. downloadAsCSV   — filtered data → CSV blob → anchor click
+ *  2. downloadAsPDF   — filtered data → jsPDF table → save
+ *  3. downloadFullRegister — direct link to the raw public CSV file
+ *
+ * jsPDF and jspdf-autotable are dynamically imported so their ~300 kB bundle
+ * is only fetched when the user actually clicks "PDF" — not on initial load.
  */
 
 import type { Sponsor } from "@/types";
 
-// ---------------------------------------------------------------------------
-// CSV
-// ---------------------------------------------------------------------------
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Hoisted outside functions so the array is not re-allocated on every call. */
+const CSV_HEADERS: ReadonlyArray<keyof Sponsor> = [
+  "Organisation Name",
+  "Town/City",
+  "Type & Rating",
+  "Route",
+];
+
+// ─── CSV ──────────────────────────────────────────────────────────────────────
 
 export function downloadAsCSV(data: Sponsor[], filename: string): void {
-  const headers = ["Organisation Name", "Town/City", "Type & Rating", "Route"];
-
   const rows = data.map((row) =>
-    headers
-      .map((h) => {
-        const value = row[h as keyof Sponsor] ?? "";
-        return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-      })
-      .join(","),
+    CSV_HEADERS.map((h) => {
+      const value = row[h] ?? "";
+      // RFC 4180: fields containing commas, quotes, or newlines must be quoted.
+      return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    }).join(","),
   );
 
-  const csv = [headers.join(","), ...rows].join("\n");
+  const csv = [CSV_HEADERS.join(","), ...rows].join("\n");
   triggerDownload(csv, `${filename}.csv`, "text/csv;charset=utf-8;");
 }
+
+// ─── Full register ─────────────────────────────────────────────────────────────
 
 export function downloadFullRegister(): void {
   const link = document.createElement("a");
@@ -35,15 +48,13 @@ export function downloadFullRegister(): void {
   document.body.removeChild(link);
 }
 
-// ---------------------------------------------------------------------------
-// PDF — uses @react-pdf/renderer, dynamically imported so the library
-// (~300kb) is only loaded when the user actually clicks PDF download.
-// ---------------------------------------------------------------------------
+// ─── PDF ──────────────────────────────────────────────────────────────────────
 
 export async function downloadAsPDF(
   data: Sponsor[],
   filename: string,
 ): Promise<void> {
+  // Dynamic imports keep these heavy libraries out of the initial bundle.
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
@@ -61,14 +72,13 @@ export async function downloadAsPDF(
   autoTable(doc, {
     startY: 26,
     head: [["Organisation Name", "Town/City", "Type & Rating", "Route"]],
-    body: data.map((row) => [
-      row["Organisation Name"],
-      row["Town/City"],
-      row["Type & Rating"],
-      row["Route"],
-    ]),
+    body: data.map((row) => CSV_HEADERS.map((h) => row[h] ?? "")),
     styles: { fontSize: 8, cellPadding: 3 },
-    headStyles: { fillColor: [91, 61, 245], textColor: 255, fontStyle: "bold" },
+    headStyles: {
+      fillColor: [91, 61, 245],
+      textColor: 255,
+      fontStyle: "bold",
+    },
     alternateRowStyles: { fillColor: [245, 245, 247] },
     columnStyles: {
       0: { cellWidth: 90 },
@@ -81,9 +91,7 @@ export async function downloadAsPDF(
   doc.save(`${filename}.pdf`);
 }
 
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
+// ─── Internal helper ──────────────────────────────────────────────────────────
 
 function triggerDownload(
   content: string,
@@ -98,5 +106,6 @@ function triggerDownload(
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  // Revoke after a tick so the browser has time to start the download.
   setTimeout(() => URL.revokeObjectURL(url), 100);
 }

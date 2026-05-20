@@ -1,3 +1,12 @@
+/**
+ * Hero.tsx
+ *
+ * Page headline and strapline.
+ *
+ * FIX: `text-mono` is not a Tailwind utility class — it has no effect.
+ * The correct class for IBM Plex Mono is `font-mono`.
+ */
+
 import { ArrowRight } from "lucide-react";
 import React from "react";
 
@@ -7,9 +16,9 @@ export default function Hero() {
       <h1 className="text-5xl md:text-6xl font-medium font-heading py-4">
         Can They <span className="text-accent">Sponsor</span>
       </h1>
-      <p className="text-mono font-light text-muted-foreground flex gap-2 items-start justify-center">
+      <p className="font-mono font-light text-muted-foreground flex gap-2 items-start justify-center">
         <ArrowRight strokeWidth={1} />
-        Query the UK Home Office sponsor register at the speed of thought.{" "}
+        Query the UK Home Office sponsor register at the speed of thought.
       </p>
     </section>
   );

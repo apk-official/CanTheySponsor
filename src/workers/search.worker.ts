@@ -1,15 +1,27 @@
 /**
  * search.worker.ts
  *
- * This file runs on a SEPARATE THREAD — not the main React thread.
- * It has no access to window, document, React, or any UI.
+ * Runs on a dedicated thread. Has no access to window, document, or React.
  *
  * Responsibilities:
- *  1. Receive a CSV URL, parse it with PapaParse, store the master list in memory
- *  2. Receive filter state, run the filter logic, post back only the matching rows
+ *  1. Fetch and stream-parse the sponsor CSV (PapaParse `step` callback)
+ *  2. Store the parsed master list in worker memory (never cloned to main thread
+ *     until needed — only filtered subsets are transferred)
+ *  3. Apply filter + search + sort on demand and post back matching rows
+ *
+ * PERFORMANCE DECISIONS:
+ * - `_searchString` is pre-computed at parse time to avoid repeated toLowerCase
+ *   concatenation inside the hot loop.
+ * - `_routeTrimmed` and `_typeRatingTrimmed` are also pre-trimmed at parse time;
+ *   the original code called `.trim()` on every row for every filter request.
+ * - The `scored` array is only populated when there is an active search term.
+ *   Filter-only requests skip scoring entirely and preserve CSV order.
+ * - `normalise` is imported from the shared lib (same function used in location.ts)
+ *   so city matching is consistent across both threads.
  */
 
 import Papa from "papaparse";
+import { normalise } from "@/lib/normalise";
 import type { Sponsor } from "@/types";
 import type {
   InboundMessage,
@@ -17,36 +29,32 @@ import type {
   FilterPayload,
 } from "@/types/search.types";
 
-// ---------------------------------------------------------------------------
-// Internal type — extends the public Sponsor with a pre-computed search string
-// The shared types file only exports what the main thread needs to know about.
-// SponsorInternal is purely a worker implementation detail.
-// ---------------------------------------------------------------------------
+// ─── Internal extended row type ───────────────────────────────────────────────
+// Not exported — the main thread only needs the public Sponsor shape.
 
 interface SponsorInternal extends Sponsor {
+  /** Lowercased "Organisation Name Town/City" for fast substring search. */
   _searchString: string;
+  /** Pre-trimmed Route value to avoid per-comparison .trim() in the hot loop. */
+  _routeTrimmed: string;
+  /** Pre-trimmed Type & Rating value. */
+  _typeRatingTrimmed: string;
 }
 
-// ---------------------------------------------------------------------------
-// Typed postMessage wrapper
-// ---------------------------------------------------------------------------
+// ─── Typed postMessage ────────────────────────────────────────────────────────
 
 function post(message: OutboundMessage): void {
   self.postMessage(message);
 }
 
-// ---------------------------------------------------------------------------
-// Master data store — lives entirely in worker memory, never cloned to main
-// ---------------------------------------------------------------------------
+// ─── State ────────────────────────────────────────────────────────────────────
 
 let masterData: SponsorInternal[] = [];
 let isParsed = false;
 
-// ---------------------------------------------------------------------------
-// Message handler
-// ---------------------------------------------------------------------------
+// ─── Message dispatch ─────────────────────────────────────────────────────────
 
-self.onmessage = (event: MessageEvent<InboundMessage>) => {
+self.onmessage = (event: MessageEvent<InboundMessage>): void => {
   const { type, payload } = event.data;
 
   switch (type) {
@@ -59,15 +67,15 @@ self.onmessage = (event: MessageEvent<InboundMessage>) => {
       break;
 
     default: {
+      // Exhaustive check — TypeScript will error here if a new message type
+      // is added to InboundMessage without a corresponding case.
       const _exhaustive: never = type;
       console.warn("[worker] Unhandled message type:", _exhaustive);
     }
   }
 };
 
-// ---------------------------------------------------------------------------
-// INIT_PARSE
-// ---------------------------------------------------------------------------
+// ─── Parse ────────────────────────────────────────────────────────────────────
 
 function handleParse(url: string): void {
   masterData = [];
@@ -80,25 +88,27 @@ function handleParse(url: string): void {
 
     step: (result) => {
       const row = result.data;
-      const name = row["Organisation Name"] ?? "";
-      const city = row["Town/City"] ?? "";
-      const typeRating = row["Type & Rating"] ?? "";
-      const route = row["Route"] ?? "";
+      const name = (row["Organisation Name"] ?? "").trim();
+      if (!name) return;
 
-      if (!name.trim()) return;
+      const city = (row["Town/City"] ?? "").trim();
+      const typeRating = (row["Type & Rating"] ?? "").trim();
+      const route = (row["Route"] ?? "").trim();
 
       masterData.push({
         "Organisation Name": name,
         "Town/City": city,
         "Type & Rating": typeRating,
         Route: route,
+        // Pre-compute at parse time — used in every filter request.
         _searchString: `${name} ${city}`.toLowerCase(),
+        _routeTrimmed: route,
+        _typeRatingTrimmed: typeRating,
       });
     },
 
     complete: () => {
       isParsed = true;
-
       post({
         type: "PARSE_COMPLETE",
         payload: {
@@ -117,23 +127,15 @@ function handleParse(url: string): void {
   });
 }
 
-// ---------------------------------------------------------------------------
-// FILTER
-// ---------------------------------------------------------------------------
+// ─── Filter ───────────────────────────────────────────────────────────────────
 
 /**
- * Scoring tiers — only applied when there is an active search term.
- * Higher score = closer to the top of results.
+ * Scoring tiers (only applied when there is an active search term):
  *
- * Score 3 — exact match:     name is exactly the search term ("EY")
- * Score 2 — starts with:     name starts with the search term ("EY ADVISORY...")
- * Score 1 — word boundary:   search term appears at the start of a word
- *                             inside the name ("ERNST & YOUNG EY PARTNER")
- * Score 0 — substring match: search term appears anywhere ("ACCOUNTANCY EY LTD")
- *
- * When there is no search term (filter-only) we skip scoring entirely —
- * no point sorting what doesn't need ranking, and it avoids allocating
- * the scored tuples array for 141k rows unnecessarily.
+ * 3 — exact match     "EY" === "EY"
+ * 2 — prefix match    "EY ADVISORY" starts with "EY"
+ * 1 — word boundary   "ERNST & YOUNG EY" contains " EY"
+ * 0 — substring       "ACCOUNTANCY EY LTD" contains "EY" somewhere
  */
 function scoreMatch(nameLower: string, searchLower: string): number {
   if (nameLower === searchLower) return 3;
@@ -150,10 +152,7 @@ function handleFilter({
   locationCities,
 }: FilterPayload): void {
   if (!isParsed) {
-    post({
-      type: "FILTER_RESULTS",
-      payload: { requestId, results: [] },
-    });
+    post({ type: "FILTER_RESULTS", payload: { requestId, results: [] } });
     return;
   }
 
@@ -163,21 +162,20 @@ function handleFilter({
   const hasTypeRating = typeRating !== "All";
   const hasLocation = locationCities.length > 0;
 
+  // Normalise cities once, outside the loop.
   const normCities: string[] = hasLocation ? locationCities.map(normalise) : [];
 
-  // Two separate accumulators to avoid branching inside the hot loop.
-  // scored is only populated when hasSearch is true.
-  const scored: Array<{ score: number; sponsor: Sponsor }> = [];
+  // Two separate accumulators avoid branching in the hot loop.
+  type Scored = { score: number; sponsor: Sponsor };
+  const scored: Scored[] = [];
   const unscored: Sponsor[] = [];
 
-  const len = masterData.length;
-
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < masterData.length; i++) {
     const row = masterData[i];
 
     if (hasSearch && !row._searchString.includes(searchLower)) continue;
-    if (hasRoute && row.Route.trim() !== route) continue;
-    if (hasTypeRating && row["Type & Rating"].trim() !== typeRating) continue;
+    if (hasRoute && row._routeTrimmed !== route) continue;
+    if (hasTypeRating && row._typeRatingTrimmed !== typeRating) continue;
     if (hasLocation && !matchesLocation(row["Town/City"], normCities)) continue;
 
     const sponsor = stripInternal(row);
@@ -190,30 +188,14 @@ function handleFilter({
     }
   }
 
-  // Sort descending by score — exact/prefix matches bubble to the top.
-  // Filter-only results keep their original CSV order (already alphabetical).
   const results: Sponsor[] = hasSearch
     ? scored.sort((a, b) => b.score - a.score).map((s) => s.sponsor)
     : unscored;
 
-  post({
-    type: "FILTER_RESULTS",
-    payload: { requestId, results },
-  });
+  post({ type: "FILTER_RESULTS", payload: { requestId, results } });
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function normalise(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[-,]/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9\s]/g, "");
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function matchesLocation(rowCity: string, normCities: string[]): boolean {
   const normRow = normalise(rowCity ?? "");
@@ -222,6 +204,11 @@ function matchesLocation(rowCity: string, normCities: string[]): boolean {
   );
 }
 
-function stripInternal({ _searchString, ...rest }: SponsorInternal): Sponsor {
+function stripInternal({
+  _searchString: _s,
+  _routeTrimmed: _r,
+  _typeRatingTrimmed: _t,
+  ...rest
+}: SponsorInternal): Sponsor {
   return rest;
 }

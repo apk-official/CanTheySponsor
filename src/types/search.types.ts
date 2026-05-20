@@ -1,23 +1,14 @@
 /**
- * search.worker.types.ts
+ * search.types.ts
  *
- * Shared message protocol types for the search worker.
- *
- * WHY A SEPARATE FILE?
- * Both search.worker.ts (the worker) and useSearchWorker.ts (the hook) need
- * to agree on what messages look like. If each file defined its own types,
- * they could silently diverge — the worker sends one shape, the hook expects
- * another, and TypeScript can't catch it because they never reference each other.
- *
- * By importing from this single file, a change to any message type is
- * immediately flagged as an error in every place that uses it.
+ * The shared message-passing contract between the main thread and the search
+ * Web Worker. Both sides import from here so a type change is caught everywhere
+ * at compile time — no silent protocol drift.
  */
 
 import type { Sponsor } from "@/types";
 
-// ---------------------------------------------------------------------------
-// Inbound messages — main thread → worker
-// ---------------------------------------------------------------------------
+// ─── Main thread → Worker ─────────────────────────────────────────────────────
 
 export interface InitParseMessage {
   type: "INIT_PARSE";
@@ -25,10 +16,13 @@ export interface InitParseMessage {
 }
 
 export interface FilterPayload {
+  /** Monotonically-increasing counter used to discard stale responses. */
   requestId: number;
   search: string;
-  route: string; // "All" means no filter
-  typeRating: string; // "All" means no filter
+  /** "All" means no route filter is applied. */
+  route: string;
+  /** "All" means no type/rating filter is applied. */
+  typeRating: string;
   locationCities: string[];
 }
 
@@ -37,12 +31,9 @@ export interface FilterMessage {
   payload: FilterPayload;
 }
 
-/** Discriminated union of every valid message the worker can receive */
 export type InboundMessage = InitParseMessage | FilterMessage;
 
-// ---------------------------------------------------------------------------
-// Outbound messages — worker → main thread
-// ---------------------------------------------------------------------------
+// ─── Worker → Main thread ─────────────────────────────────────────────────────
 
 export interface ParseCompleteMessage {
   type: "PARSE_COMPLETE";
@@ -65,7 +56,6 @@ export interface FilterResultsMessage {
   };
 }
 
-/** Discriminated union of every valid message the worker can send */
 export type OutboundMessage =
   | ParseCompleteMessage
   | ParseErrorMessage

@@ -3,7 +3,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -158,8 +157,17 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
-  html {
+    /*
+     * FIX: `font-mono` was previously applied to the `html` element.
+     * Setting it on `html` conflicts with Tailwind's utility-first approach
+     * because `html` sits above the CSS cascade reset boundary that Tailwind
+     * uses. Components that apply `font-sans` via Tailwind classes correctly
+     * override it, but any element that doesn't explicitly set a font class
+     * inherits `font-mono` from `html`, which is rarely the intended default
+     * for body copy. Applying it to `body` is still a project-level default
+     * (mono-first for the data-dense UI aesthetic) but plays correctly with
+     * Tailwind's utility classes.
+     */
     @apply font-mono;
   }
 }
@@ -180,6 +188,7 @@
   }
 }
 
+/* ─── Custom scrollbar ───────────────────────────────────────── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

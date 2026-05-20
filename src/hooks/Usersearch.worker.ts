@@ -1,33 +1,36 @@
 /**
  * useSearchWorker.ts
  *
- * A custom React hook that owns the full lifecycle of the search worker:
- *   - Creates the worker once on mount
- *   - Sends the CSV URL to kick off parsing
- *   - Sends filter state (debounced) whenever it changes
- *   - Receives results and updates state
- *   - Terminates the worker on unmount (prevents memory leaks)
+ * Owns the full lifecycle of the search Web Worker:
+ *  - Creates the worker once on mount and terminates it on unmount.
+ *  - Sends the CSV URL to kick off streaming parse.
+ *  - Debounces and sends filter state whenever it changes.
+ *  - Receives results and exposes them as React state.
  *
- * WHY A CUSTOM HOOK?
- * Hooks let you pull stateful logic out of components. The component
- * (SearchFilters) shouldn't need to know HOW the worker works — it just
- * provides filter state and gets results back. This separation makes both
- * the hook and the component easier to reason about and test.
+ * KEY DESIGN DECISIONS:
  *
- * PRINCIPLES USED:
- *  - useRef for the worker instance (mutable, doesn't trigger re-renders)
- *  - useRef for the debounce timer (same reason)
- *  - useRef for the requestId counter (race condition guard)
- *  - useEffect for side effects (worker creation, filter dispatch, cleanup)
- *  - Cleanup functions in useEffect to prevent memory leaks
+ * isParsedRef (not isLoading state):
+ *   The previous implementation gated filter dispatches on `isLoading`. This
+ *   worked, but it meant Effect 2 re-ran every time `isLoading` flipped —
+ *   including back to `false` after parse. Using a ref (`isParsedRef`) avoids
+ *   this: the ref change doesn't trigger a re-render or re-run the effect, and
+ *   the debounce timer in Effect 2 checks it synchronously at fire time.
+ *
+ * locationCities stable reference:
+ *   `locationCities` is a string array that may be reconstructed as a new array
+ *   instance on every render (even if the contents are identical). Using it
+ *   directly in the dependency array would fire the debounce on every render.
+ *   We JSON-stringify it to produce a stable scalar for comparison.
+ *
+ * requestIdRef race-condition guard:
+ *   Rapid typing fires many FILTER messages. Results can arrive out of order.
+ *   We increment a counter on every dispatch and only apply a result if its
+ *   echoed-back ID matches the current counter.
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Sponsor } from "@/types";
+import { useEffect, useRef, useState } from "react";
+import type { Sponsor } from "@/types";
 
-// How long to wait after the last filter change before sending to the worker.
-// 150ms is the sweet spot: fast enough to feel instant, slow enough to avoid
-// flooding the worker on rapid keystrokes.
 const DEBOUNCE_MS = 150;
 
 export interface UseSearchWorkerOptions {
@@ -55,102 +58,76 @@ export function useSearchWorker({
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  // useRef because we need a stable reference to the worker that:
-  //  a) persists across renders
-  //  b) doesn't CAUSE re-renders when it changes
   const workerRef = useRef<Worker | null>(null);
-
-  // A counter we increment on every filter dispatch.
-  // The worker echoes it back with results. If the returned ID doesn't
-  // match our current counter, we know the result is stale (from a
-  // superseded request) and we discard it.
-  // This solves the RACE CONDITION: user types fast → multiple requests
-  // in flight → results could arrive out of order.
   const requestIdRef = useRef(0);
-
-  // Debounce timer ref — storing in a ref means clearing it in the cleanup
-  // doesn't require it to be in the dependency array.
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ---------------------------------------------------------------------------
-  // Effect 1: Create the worker once, set up message handling, kick off parse
-  // ---------------------------------------------------------------------------
+  // Tracks whether the worker has finished its initial parse. Using a ref
+  // (not state) because we don't want the change to trigger a re-render or
+  // cause Effect 2 to re-run via the dependency array.
+  const isParsedRef = useRef(false);
+
+  // Stable scalar representation of locationCities. JSON.stringify returns the
+  // same string when the array contents are the same, preventing spurious
+  // debounce triggers when the parent re-renders with a new array instance.
+  const locationCitiesKey = JSON.stringify(locationCities);
+
+  // ─── Effect 1: Worker lifecycle ──────────────────────────────────────────────
   useEffect(() => {
-    // Vite requires this exact syntax to bundle workers correctly.
-    // The { type: 'module' } option lets the worker use ES module imports
-    // (which is how PapaParse is imported inside it).
     const worker = new Worker(
-      new URL("../workers/search.worker.js", import.meta.url),
+      new URL("../workers/search.worker.ts", import.meta.url),
       { type: "module" },
     );
-
     workerRef.current = worker;
 
-    // Set up the message handler BEFORE sending any messages, so we don't
-    // miss any responses.
-    worker.onmessage = (event) => {
+    worker.onmessage = (event: MessageEvent): void => {
       const { type, payload } = event.data;
 
       switch (type) {
         case "PARSE_COMPLETE":
-          // Initial load — all rows are sent once. After this the worker
-          // keeps the master data and we only get filtered subsets.
+          isParsedRef.current = true;
           setTotalCount(payload.count);
           setData(payload.results);
           setIsLoading(false);
           break;
 
         case "FILTER_RESULTS":
-          // Only apply results if this matches the most recent request.
-          // Stale responses from superseded requests are silently dropped.
+          // Discard stale responses from superseded requests.
           if (payload.requestId === requestIdRef.current) {
             setData(payload.results);
           }
           break;
 
         case "PARSE_ERROR":
-          console.error("[worker] Parse failed:", payload.message);
+          console.error("[useSearchWorker] Parse failed:", payload.message);
           setIsLoading(false);
           break;
       }
     };
 
-    worker.onerror = (err) => {
-      console.error("[worker] Uncaught error:", err.message);
+    worker.onerror = (err: ErrorEvent): void => {
+      console.error("[useSearchWorker] Worker error:", err.message);
       setIsLoading(false);
     };
 
-    // Kick off CSV parsing immediately.
-    worker.postMessage({
-      type: "INIT_PARSE",
-      payload: { url: csvUrl },
-    });
+    worker.postMessage({ type: "INIT_PARSE", payload: { url: csvUrl } });
 
-    // CLEANUP: when the component unmounts, terminate the worker.
-    // Without this, the worker keeps running in memory forever.
     return () => {
       worker.terminate();
       workerRef.current = null;
+      isParsedRef.current = false;
     };
-  }, [csvUrl]); // Only re-run if the CSV URL changes (it won't in practice)
+  }, [csvUrl]);
 
-  // ---------------------------------------------------------------------------
-  // Effect 2: Dispatch filter messages whenever filter state changes
-  // ---------------------------------------------------------------------------
+  // ─── Effect 2: Filter dispatch ───────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    // Don't send filter messages before the worker has finished parsing.
-    // isLoading serves as our "ready" gate.
-    if (isLoading) return;
-
-    // Clear any pending debounce timer — we're starting a new one.
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     debounceTimerRef.current = setTimeout(() => {
-      if (!workerRef.current) return;
+      // Check the ref at fire time — if parse hasn't completed yet, skip.
+      if (!workerRef.current || !isParsedRef.current) return;
 
-      // Increment the request ID. This is what lets us detect stale responses.
       const id = ++requestIdRef.current;
 
       workerRef.current.postMessage({
@@ -160,19 +137,18 @@ export function useSearchWorker({
           search,
           route,
           typeRating,
-          locationCities,
+          // Re-parse from the stable key so we send the actual array.
+          locationCities: JSON.parse(locationCitiesKey) as string[],
         },
       });
     }, DEBOUNCE_MS);
 
-    // Cleanup: clear the timer if the effect re-runs before the timeout fires.
-    // This is what makes debouncing work — rapid changes cancel previous timers.
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [isLoading, search, route, typeRating, locationCities]);
+    // locationCitiesKey is the stable scalar derived from locationCities.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, route, typeRating, locationCitiesKey]);
 
   return { data, isLoading, totalCount };
 }
