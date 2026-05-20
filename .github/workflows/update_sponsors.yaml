@@ -1,0 +1,56 @@
+name: Update Sponsors Register
+
+on:
+  # Run every weekday at 09:30 UTC (10:30 BST / 11:30 CEST)
+  # The Home Office typically publishes updates during UK business hours.
+  schedule:
+    - cron: "30 9 * * 1-5"
+
+  # Allow a manual trigger from the Actions tab (useful for testing)
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit the updated CSV back to the repo
+
+jobs:
+  fetch-and-commit:
+    name: Fetch latest CSV from GOV.UK
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ──────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # ── 3. Install dependencies ───────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      # ── 4. Run the fetch script ───────────────────────────────────────────────
+      - name: Fetch sponsors CSV
+        run: python scripts/fetch_sponsors.py --out-dir public/data
+
+      # ── 5. Check whether anything changed ─────────────────────────────────────
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet public/data/ && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # ── 6. Commit & push (only when the CSV actually changed) ─────────────────
+      - name: Commit updated data
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/sponsors.csv public/data/meta.json
+          BUILD_DATE=$(date -u +"%Y-%m-%d")
+          git commit -m "chore(data): update sponsors register ${BUILD_DATE}"
+          git push
