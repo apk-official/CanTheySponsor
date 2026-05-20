@@ -16,9 +16,22 @@ export default function Hero() {
       <h1 className="text-5xl md:text-6xl font-medium font-heading py-4">
         Can They <span className="text-accent">Sponsor</span>
       </h1>
-      <p className="font-mono font-light text-muted-foreground flex gap-2 items-start justify-center">
+      <p className="font-mono font-light text-muted-foreground flex gap-2 items-start justify-center text-xs">
         <ArrowRight strokeWidth={1} />
-        Query the UK Home Office sponsor register at the speed of thought.
+        <p>
+          CanTheySponsor lets you instantly search the UK Home Office's{" "}
+        <a
+          href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline decoration-primary underline-offset-2"
+        >
+          Register of Licensed Sponsors
+        </a>{" "}
+        — over 140,000 organisations approved to sponsor overseas workers on the
+        Skilled Worker visa and other routes. Free, no login required, updated daily.
+        </p>
+        
       </p>
     </section>
   );
