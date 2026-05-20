@@ -2,9 +2,122 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>cantheysponsor</title>
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+    <link rel="manifest" href="/favicon/site.webmanifest" />
+    <meta name="theme-color" content="#5b3df5" />
+
+    <!-- Primary SEO -->
+    <title>CanTheySponsor — Search 140,000+ UK Licensed Sponsors Instantly</title>
+    <meta name="description" content="Check if a UK company can sponsor your work visa. Search the official Home Office register of 140,000+ licensed sponsors. Free, instant, no login required." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://cantheysponsor.co.uk/" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="CanTheySponsor — UK Sponsor Licence Checker" />
+    <meta property="og:description" content="Instantly search the UK Home Office register of 140,000+ licensed sponsors. Free, no login required, updated daily." />
+    <meta property="og:url" content="https://cantheysponsor.co.uk" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://cantheysponsor.co.uk/og-image.png" />
+    <meta property="og:site_name" content="CanTheySponsor" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CanTheySponsor — UK Sponsor Licence Checker" />
+    <meta name="twitter:description" content="Instantly search the UK Home Office register of 140,000+ licensed sponsors. Free, no login required, updated daily." />
+    <meta name="twitter:image" content="https://cantheysponsor.co.uk/og-image.png" />
+
+    <!-- Structured Data: WebApplication + Dataset -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "CanTheySponsor",
+      "url": "https://cantheysponsor.co.uk",
+      "description": "Free search tool to check if a UK company holds a valid Home Office sponsor licence. Covers 140,000+ organisations on the official register.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "GBP"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "CanTheySponsor",
+        "url": "https://cantheysponsor.co.uk"
+      },
+      "about": {
+        "@type": "Dataset",
+        "name": "UK Register of Licensed Sponsors (Workers)",
+        "description": "Official Home Office register of UK organisations licensed to sponsor overseas workers.",
+        "url": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
+        "license": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+        "creator": {
+          "@type": "GovernmentOrganization",
+          "name": "UK Home Office"
+        }
+      }
+    }
+    </script>
+
+    <!-- Structured Data: FAQ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I check if a company can sponsor a UK work visa?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Search the Home Office Register of Licensed Sponsors using CanTheySponsor. Enter the company name to instantly see if they hold a valid sponsor licence, their licence type, rating, and location."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the UK Register of Licensed Sponsors?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Register of Licensed Sponsors is an official UK government list of organisations approved by the Home Office to sponsor overseas workers for UK work visas. It is published on GOV.UK and updated most weekdays."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does it mean if a sponsor has a B rating?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A B-rated sponsor is under an action plan from the Home Office. They can continue to sponsor workers but are being monitored. A-rated sponsors have no current concerns."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How often is the sponsor register updated?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The UK Home Office updates the register on most weekdays. CanTheySponsor's automated pipeline fetches the latest version daily, so the data is typically no more than one business day old."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is CanTheySponsor free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. CanTheySponsor is completely free to use, with no account, no login, and no limit on searches."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- CSV preload for faster LCP -->
+    <link rel="preload" href="/data/sponsors.csv" as="fetch" crossorigin="anonymous" />
   </head>
   <body>
     <div id="root"></div>
