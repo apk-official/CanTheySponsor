@@ -102,3 +102,7 @@ export interface LocationSearchResult {
   /** Human-readable label for the resolved location (postcode, town name, etc.). */
   displayName: string;
 }
+
+export interface FooterProps {
+  buildDate: string;
+}

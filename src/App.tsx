@@ -13,7 +13,7 @@
  * - Removed unused `React` import (React 17+ JSX transform doesn't require it).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import SearchFilters from "./components/SearchFilters";
@@ -29,6 +29,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(false);
+  const [buildDate, setBuildDate] = useState<string>("Loading...");
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term);
@@ -36,6 +37,12 @@ function App() {
     // button disappears cleanly without stale highlight state.
     if (!term.trim()) setHighlightEnabled(false);
   };
+  useEffect(() => {
+  fetch("/data/meta.json")
+    .then((r) => r.json())
+    .then((meta) => setBuildDate(meta.buildDateHuman))
+    .catch(() => setBuildDate("Unknown"));
+}, []);
 
   return (
     <section className="flex flex-col p-6 w-full min-h-screen">
@@ -51,6 +58,7 @@ function App() {
         highlightEnabled={highlightEnabled}
         onHighlightToggle={() => setHighlightEnabled((prev) => !prev)}
         filteredData={filteredData}
+        updatedOn={buildDate}
       />
       <Separator className=""/>
       <ResultsTable
@@ -59,7 +67,7 @@ function App() {
         searchTerm={searchTerm}
         highlightEnabled={highlightEnabled}
       />
-      <Footer />
+      <Footer buildDate={buildDate}/>
     </section>
   );
 }

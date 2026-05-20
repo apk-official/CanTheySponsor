@@ -1,8 +1,11 @@
 import React from "react";
 import { Separator } from "./ui/separator";
 import { Handshake } from "lucide-react";
+import { FooterProps } from "@/types";
 
-export default function Footer() {
+
+
+export default function Footer({ buildDate }: FooterProps) {
   return (
     <section className="flex flex-col w-full md:1/2 pt-8 min-h-30">
       <Separator className="" />
@@ -36,7 +39,7 @@ export default function Footer() {
           &nbsp;Register of licensed sponsors (workers)
         </a>
         . Pipeline build{" "}
-        <span className="build-date">[Insert Build Date Here]</span>.
+        <span className="build-date">{buildDate}</span>.
       </p>
     </section>
   );
