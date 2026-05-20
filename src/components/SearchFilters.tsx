@@ -19,6 +19,7 @@ export default function SearchFilters({
   const [locationCities, setLocationCities] = useState<string[]>([]);
   const [locationSelected, setLocationSelected] = useState<boolean>(false);
   const [companySearch, setCompanySearch] = useState<string>("");
+  const [resetKey, setResetKey] = useState(0);
 
   const handleSelect = () => setLocationSelected(true);
 
@@ -37,6 +38,8 @@ export default function SearchFilters({
     setLocationSelected(false);
     setLocationCities([]);
     setCompanySearch("");
+    onSearchChange("");
+    setResetKey((k) => k + 1);
   };
 
   const { data, isLoading } = useSearchWorker({
@@ -68,13 +71,16 @@ export default function SearchFilters({
   return (
     <section className="flex flex-col items-start gap-3 w-full">
       <Search
+        key={resetKey}
         companySearch={companySearch}
         onCompanySearchChange={handleSearchChange}
       />
 
       {/* On mobile: two rows. On desktop (md+): single row with all filters */}
       <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 w-full">
-        <p className="font-mono text-sm text-muted-foreground shrink-0">FILTERS:</p>
+        <p className="font-mono text-sm text-muted-foreground shrink-0">
+          FILTERS:
+        </p>
 
         {/* Row 1 on mobile / inline on desktop */}
         <div className="flex items-center gap-3">

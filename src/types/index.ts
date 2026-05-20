@@ -83,6 +83,7 @@ export type TableActionBarProps = {
   searchTerm: string;
   highlightEnabled: boolean;
   onHighlightToggle: () => void;
+  filteredData: Sponsor[];
 };
 
 export type LocationSearchResult = {

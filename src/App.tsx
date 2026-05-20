@@ -14,8 +14,6 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(false);
 
-  // Auto-enable highlight when user starts typing, auto-disable when cleared.
-  // User can still manually toggle it off while searching if they don't want it.
   useEffect(() => {
     if (searchTerm.trim()) {
       setHighlightEnabled(true);
@@ -37,8 +35,9 @@ function App() {
         searchTerm={searchTerm}
         highlightEnabled={highlightEnabled}
         onHighlightToggle={() => setHighlightEnabled((prev) => !prev)}
+        filteredData={filteredData}
       />
-      <Separator className=""/>
+      <Separator className="" />
       <ResultsTable
         data={filteredData}
         isLoading={isLoading}
