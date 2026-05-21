@@ -1,20 +1,4 @@
-<!--
-  REPLACE THIS BLOCK with your actual demo video.
-  Option A – GitHub-hosted MP4 (drag & drop in a PR or issue, copy the URL):
-    https://user-images.githubusercontent.com/YOUR_ID/cantheysponsor-demo.mp4
-
-  Option B – Animated GIF (recorded via Kap / LICEcap / ScreenToGif):
-    ![Demo](./docs/demo.gif)
-
-  Option C – YouTube / Loom embed (GitHub doesn't autoplay, so link a thumbnail):
-    [![Watch the demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
--->
-
-https://user-images.githubusercontent.com/YOUR_GITHUB_ID/cantheysponsor-demo.mp4
-
-> **Replace the line above** with your own hosted video URL or GIF. See the comment block for options.
-
----
+https://github.com/user-attachments/assets/25cfbbcc-5727-44bc-b2fa-e9b9d3a41857
 
 <div align="center">
 
