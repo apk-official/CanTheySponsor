@@ -23,6 +23,7 @@ export default function TableActionBar({
   onHighlightToggle,
   filteredData,
   updatedOn = "9th May 2026",
+  isFiltered,
 }: TableActionBarProps) {
   return (
     <div className="w-full flex items-center justify-between pt-3 pb-2">
@@ -51,7 +52,7 @@ export default function TableActionBar({
             <span className="hidden sm:inline">Highlight</span>
           </Button>
         )}
-        <Export filteredData={filteredData} />
+        <Export filteredData={filteredData} isFiltered={isFiltered}/>
       </div>
     </div>
   );

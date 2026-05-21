@@ -73,8 +73,8 @@ export interface CompanySearchProps {
 export interface SearchFiltersProps {
   onFilteredDataChange: (data: Sponsor[]) => void;
   onLoadingChange: (loading: boolean) => void;
-  /** Mirrors the current search term up to App so it can be passed to ResultsTable. */
   onSearchChange: (term: string) => void;
+  onIsFilteredChange?: (isFiltered: boolean) => void;
 }
 
 export interface ResultsTableProps {
@@ -93,6 +93,7 @@ export interface TableActionBarProps {
   filteredData: Sponsor[];
   /** ISO date string shown in the action bar ("Updated On"). */
   updatedOn?: string;
+  isFiltered: boolean;
 }
 
 // ─── Location ─────────────────────────────────────────────────────────────────

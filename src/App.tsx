@@ -30,6 +30,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(false);
   const [buildDate, setBuildDate] = useState<string>("Loading...");
+  const [isFiltered, setIsFiltered] = useState(false);
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term);
@@ -52,6 +53,7 @@ function App() {
         onFilteredDataChange={setFilteredData}
         onLoadingChange={setIsLoading}
         onSearchChange={handleSearchChange}
+        onIsFilteredChange={setIsFiltered}
       />
       <TableActionBar
         searchTerm={searchTerm}
@@ -59,6 +61,7 @@ function App() {
         onHighlightToggle={() => setHighlightEnabled((prev) => !prev)}
         filteredData={filteredData}
         updatedOn={buildDate}
+        isFiltered={isFiltered}
       />
       <Separator className=""/>
       <ResultsTable

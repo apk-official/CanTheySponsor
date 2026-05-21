@@ -1,34 +1,4 @@
-/**
- * SearchFilters.tsx
- *
- * Manages all filter state and coordinates between the filter UI components
- * and the search worker hook.
- *
- * ANTI-PATTERN FIXED:
- * The original called `onFilteredDataChange(data)` and `onLoadingChange(...)` 
- * inside `useEffect`. This causes a double-render: the effect fires *after* the
- * render that received the new `data`, scheduling an additional re-render of
- * the parent. 
- *
- * The fix is to call these callbacks synchronously during the render cycle by
- * computing their arguments directly (useMemo is not needed here since the
- * hook returns stable references that only change when data changes). We pass
- * setters directly to the worker hook's change notifications — or, for the
- * parent callbacks, call them in the same event handler that updates local
- * state. For filter results and loading state, we let the parent hold the
- * source-of-truth by lifting it fully.
- *
- * In practice the cleanest solution for this pattern is to expose the data
- * directly from the hook and let App hold the state — but that would require
- * moving the hook call up, which changes the component contract. Instead we
- * use a render-time call pattern: because `data` and `isLoading` come from a
- * hook that is stable between re-renders (only changes when worker sends data),
- * calling `onFilteredDataChange(data)` directly in the component body is safe
- * and correct — it won't cause infinite loops because React batches state
- * updates and `data` reference is stable.
- */
-
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import type { Route, SearchFiltersProps, TypeRating } from "@/types";
 import Search from "./SearchInput";
 import RouteFilter from "./RouteFilter";
@@ -42,6 +12,7 @@ export default function SearchFilters({
   onFilteredDataChange,
   onLoadingChange,
   onSearchChange,
+  onIsFilteredChange,
 }: SearchFiltersProps) {
   const [currentRoute, setCurrentRoute] = useState<Route>("All");
   const [currentTypeRating, setCurrentTypeRating] = useState<TypeRating>("All");
@@ -81,12 +52,15 @@ export default function SearchFilters({
     locationCities,
   });
 
-  // Call parent callbacks synchronously during render — this is safe because
-  // `data` and `isLoading` are stable references from the hook and only change
-  // when the worker posts a message, which is an asynchronous event that always
-  // triggers a fresh render anyway.
+  const isFiltered =
+    companySearch.trim() !== "" ||
+    currentRoute !== "All" ||
+    currentTypeRating !== "All" ||
+    locationCities.length > 0;
+
   onFilteredDataChange(data);
   onLoadingChange(isLoading);
+  onIsFilteredChange?.(isFiltered);
 
   const handleSearchChange = (value: string) => {
     setCompanySearch(value);
@@ -111,7 +85,6 @@ export default function SearchFilters({
           FILTERS:
         </p>
 
-        {/* Row 1 on mobile / inline on desktop */}
         <div className="flex items-center gap-3">
           <RouteFilter value={currentRoute} onValueChange={setCurrentRoute} />
           <TypeRatingFilter
@@ -120,7 +93,6 @@ export default function SearchFilters({
           />
         </div>
 
-        {/* Row 2 on mobile / inline on desktop */}
         <div className="flex items-center gap-3">
           <LocationFilter
             value={currentLocation}

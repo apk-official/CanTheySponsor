@@ -1,14 +1,3 @@
-/**
- * Export.tsx
- *
- * Dropdown with three download options: filtered CSV, filtered PDF, and
- * the full raw register CSV.
- *
- * FIX: Removed unused `React` import (JSX transform handles it).
- * IMPROVEMENT: Added `aria-busy` and `aria-label` attributes to loading states
- * so screen readers announce the in-progress download.
- */
-
 import { useState } from "react";
 import {
   ChevronDown,
@@ -30,6 +19,7 @@ import React from "react";
 
 interface ExportProps {
   filteredData: Sponsor[];
+  isFiltered: boolean;
 }
 
 type DownloadKey = "DM1" | "DM2" | "DM3";
@@ -70,7 +60,7 @@ const DOWNLOAD_MENU: Array<{
   },
 ];
 
-export default function Export({ filteredData }: ExportProps) {
+export default function Export({ filteredData, isFiltered }: ExportProps) {
   const [loadingKey, setLoadingKey] = useState<DownloadKey | null>(null);
 
   const handleDownload = async (key: DownloadKey): Promise<void> => {
@@ -93,6 +83,10 @@ export default function Export({ filteredData }: ExportProps) {
     }
   };
 
+  const visibleItems = DOWNLOAD_MENU.filter(
+    (item) => item.key === "DM3" || isFiltered
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -105,7 +99,7 @@ export default function Export({ filteredData }: ExportProps) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-56 flex flex-col gap-1">
-        {DOWNLOAD_MENU.map((item) => {
+        {visibleItems.map((item) => {
           const isLoading = loadingKey === item.key;
           return (
             <DropdownMenuItem
@@ -114,8 +108,6 @@ export default function Export({ filteredData }: ExportProps) {
               inset={undefined}
               aria-busy={isLoading}
               onSelect={(e: Event) => {
-                // For async operations (PDF), prevent the dropdown from closing
-                // while the generation is in progress.
                 if (item.key === "DM2") e.preventDefault();
                 handleDownload(item.key);
               }}
