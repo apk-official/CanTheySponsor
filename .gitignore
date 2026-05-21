@@ -29,3 +29,14 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+coverage/
+
+*.local
+*.tsbuildinfo
