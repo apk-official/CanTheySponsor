@@ -1,7 +1,7 @@
 {
-  "buildDate": "2026-05-20T00:00:00Z",
-  "buildDateHuman": "20 May 2026",
-  "sourceUrl": "",
+  "buildDate": "2026-05-21T15:05:03Z",
+  "buildDateHuman": "21 May 2026",
+  "sourceUrl": "https://assets.publishing.service.gov.uk/media/6a0ec4d52e20b377604ec76e/2026-05-21_-_Worker_and_Temporary_Worker.csv",
   "sourcePageUrl": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
-  "csvChanged": false
+  "csvChanged": true
 }
