@@ -1,7 +1,7 @@
 {
-  "buildDate": "2026-08-24T10:08:38Z",
-  "buildDateHuman": "24 August 2026",
-  "sourceUrl": "https://assets.publishing.service.gov.uk/media/6a880c578346e5bc7c6db232/SP_-_Worker_and_Temporary_Worker_Web_Register_-_2026-08-21.csv",
+  "buildDate": "2026-08-25T09:58:11Z",
+  "buildDateHuman": "25 August 2026",
+  "sourceUrl": "https://assets.publishing.service.gov.uk/media/6a8c1d5ddba67049905daa17/SP_-_Worker_and_Temporary_Worker_Web_Register_-_2026-08-24.csv",
   "sourcePageUrl": "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers",
-  "csvChanged": false
+  "csvChanged": true
 }
